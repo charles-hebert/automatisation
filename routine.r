@@ -1,6 +1,8 @@
 #cbc
 #wikipedia
 #trends
+#webmasters tools
+#my business profile
 #envoi courriel
 
 
