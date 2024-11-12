@@ -22,6 +22,6 @@ jobs:
 
       - name: Run email script
         env:
-          SMTP_PASSWORD: ${{ secrets.email_secret }}
+          SMTP_PASSWORD: ${{ secrets.EMAIL_SECRET }}
         run: |
           Rscript routine.R
