@@ -18,13 +18,13 @@ Pour toute info, n'hésitez pas à communiquer avec moi,
 Charles")
 )
 
-# Ajoutez les fichiers en pièce jointe (spécifiez le chemin de vos fichiers)
+# Ajout des fichiers en pièce jointe
 fichiers_a_envoyer <- c("wikipedia/wikipedia.csv")
 for (fichier in fichiers_a_envoyer) {
   email <- add_attachment(email, file = fichier)
 }
 
-# Envoyer l'email
+# Envoi du courriel
 smtp <- smtp_send(
   email,
   from = "charles.hebert.osfi@outlook.com",
