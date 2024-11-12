@@ -33,8 +33,8 @@ smtp <- smtp_send(
   credentials = creds_envvar(
     user = "charles.hebert.osfi@outlook.com",
     pass_envvar = "email_secret",
-    host = "smtp.exemple.com",
-    port = 465,
+    host = "smtp.office365.com",
+    port = 587,
     use_ssl = TRUE
   )
 )
