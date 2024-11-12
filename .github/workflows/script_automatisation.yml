@@ -24,4 +24,4 @@ jobs:
         env:
           SMTP_PASSWORD: ${{ secrets.EMAIL_SECRET }}
         run: |
-          Rscript routine.R
+          Rscript ../../routine.R
