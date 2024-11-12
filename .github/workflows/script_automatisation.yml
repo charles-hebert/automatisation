@@ -22,6 +22,6 @@ jobs:
 
       - name: Run email script
         env:
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }} # Injecte le mot de passe à partir des secrets
+          SMTP_PASSWORD: ${{ secrets.email_secret }}
         run: |
-          Rscript votre_script_email.R
+          Rscript routine.R
