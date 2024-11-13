@@ -3,7 +3,7 @@ name: Envoi courriel via Blastula après automatisation du script de scraping.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 17 * * 1-5' # Exécute du lundi au vendredi à 8:00 UTC
+    - cron: '30 20 * * 1-5' # Exécute du lundi au vendredi à 8:00 UTC
 
 jobs:
   send_email:
