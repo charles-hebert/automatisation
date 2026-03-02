@@ -1,0 +1,138 @@
+# TSX stock extraction pipeline (separate from routine.r)
+# ------------------------------------------------------
+# Builds 3 stock sets from TSX universe and exports CSVs with insider-trading info.
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(stringr)
+  library(rvest)
+  library(yfR)
+  library(purrr)
+})
+
+parse_market_cap <- function(x) {
+  x <- str_replace_all(x, ",", "")
+  mult <- case_when(
+    str_detect(x, "T$") ~ 1e12,
+    str_detect(x, "B$") ~ 1e9,
+    str_detect(x, "M$") ~ 1e6,
+    str_detect(x, "K$") ~ 1e3,
+    TRUE ~ 1
+  )
+  parse_number(x) * mult
+}
+
+num_clean <- function(x) parse_number(str_replace_all(x, ",", ""))
+
+# Insider-trading extraction (Yahoo Finance)
+get_insider_net_shares <- function(yahoo_symbol) {
+  symbol <- str_remove(yahoo_symbol, "\\.TO$")
+  url <- sprintf(
+    "https://ca.finance.yahoo.com/quote/%s.TO/insider-transactions?p=%s.TO",
+    symbol,
+    symbol
+  )
+
+  page <- tryCatch(read_html(url), error = function(e) NULL)
+  if (is.null(page)) return(NA_real_)
+
+  txt <- page |> html_text2() |> str_squish()
+  m <- str_match(txt, "Net Shares Purchased \\(Sold\\)\\s*([+-]?[0-9,]+)")
+  if (is.na(m[1, 2])) return(NA_real_)
+
+  as.numeric(str_replace_all(m[1, 2], ",", ""))
+}
+
+insider_label <- function(x) {
+  case_when(
+    is.na(x) ~ "unknown",
+    x > 0 ~ "net_buying",
+    x < 0 ~ "net_selling",
+    TRUE ~ "flat"
+  )
+}
+
+# 1) Largest 300 on TSX
+tsx_raw <- read_html("https://stockanalysis.com/list/tsx-stocks/") |> html_table(fill = TRUE)
+
+tsx <- tsx_raw[[1]] |>
+  transmute(
+    symbol = Symbol,
+    company = Company,
+    market_cap_num = parse_market_cap(`Market Cap`),
+    pe_ratio = num_clean(`P/E`),
+    pb_ratio = num_clean(`P/B`),
+    dividend_yield = num_clean(`Div Yield`),
+    yahoo_symbol = if_else(str_detect(Symbol, "\\.TO$"), Symbol, paste0(Symbol, ".TO"))
+  ) |>
+  filter(!is.na(market_cap_num)) |>
+  arrange(desc(market_cap_num)) |>
+  slice_head(n = 300)
+
+# 2) 260-day volatility
+prices <- yf_get(
+  tickers = unique(tsx$yahoo_symbol),
+  first_date = Sys.Date() - 420,
+  last_date = Sys.Date(),
+  do_cache = FALSE,
+  bench_ticker = NULL,
+  thresh_bad_data = 1
+)
+
+vol_260 <- prices |>
+  group_by(ticker) |>
+  arrange(ref_date, .by_group = TRUE) |>
+  mutate(ret = log(price_adjusted / lag(price_adjusted))) |>
+  summarise(
+    n_obs = sum(!is.na(ret)),
+    vol_260 = if_else(n_obs >= 260, sd(tail(na.omit(ret), 260)) * sqrt(252), as.numeric(NA)),
+    .groups = "drop"
+  )
+
+# 3) 50 lowest-vol dividend payers
+candidates <- tsx |>
+  left_join(vol_260, by = c("yahoo_symbol" = "ticker")) |>
+  filter(!is.na(vol_260), !is.na(dividend_yield), dividend_yield > 0) |>
+  arrange(vol_260) |>
+  slice_head(n = 50)
+
+add_insider_cols <- function(df) {
+  df |>
+    mutate(
+      insider_net_shares = map_dbl(yahoo_symbol, get_insider_net_shares),
+      insider_trading = insider_label(insider_net_shares)
+    ) |>
+    select(-yahoo_symbol)
+}
+
+# Set 1: 10 lowest P/E
+set_low_pe <- candidates |>
+  filter(!is.na(pe_ratio), pe_ratio > 0) |>
+  arrange(pe_ratio) |>
+  slice_head(n = 10) |>
+  add_insider_cols()
+
+# Set 2: 10 lowest P/B
+set_low_pb <- candidates |>
+  filter(!is.na(pb_ratio), pb_ratio > 0) |>
+  arrange(pb_ratio) |>
+  slice_head(n = 10) |>
+  add_insider_cols()
+
+# Set 3: 10 highest dividend yield
+set_high_div <- candidates |>
+  filter(!is.na(dividend_yield), dividend_yield > 0) |>
+  arrange(desc(dividend_yield)) |>
+  slice_head(n = 10) |>
+  add_insider_cols()
+
+# Export files (with insider trading column)
+write_csv(set_low_pe, "tsx_set_low_pe_with_insider.csv")
+write_csv(set_low_pb, "tsx_set_low_pb_with_insider.csv")
+write_csv(set_high_div, "tsx_set_high_div_with_insider.csv")
+
+cat("Exports created with insider_trading column:\n")
+cat("- tsx_set_low_pe_with_insider.csv\n")
+cat("- tsx_set_low_pb_with_insider.csv\n")
+cat("- tsx_set_high_div_with_insider.csv\n")
