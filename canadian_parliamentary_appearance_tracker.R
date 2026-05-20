@@ -83,8 +83,7 @@ fetch_html <- function(url) {
 extract_page_text <- function(doc) {
   doc |>
     html_element("body") |>
-    html_text2() |>
-    normalize_text()
+    html_text2()
 }
 
 make_absolute_url <- function(url, base) {
@@ -92,6 +91,7 @@ make_absolute_url <- function(url, base) {
 }
 
 extract_date_time <- function(page_text) {
+  page_text <- normalize_text(page_text)
   date_match <- str_match(
     page_text,
     "((Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\\s+[A-Z][a-z]+\\s+\\d{1,2},\\s+\\d{4})"
@@ -192,25 +192,36 @@ extract_house_committee_members <- function(committee_code) {
 }
 
 extract_house_representatives <- function(page_text, organization_pattern) {
-  lines <- str_split(page_text, "(?<=\\.)\\s+|\\s{2,}", simplify = FALSE)[[1]]
-  lines <- normalize_text(lines)
-
-  matching_lines <- lines[str_detect(lines, regex(organization_pattern, ignore_case = TRUE))]
-  if (length(matching_lines) == 0) {
-    return(NA_character_)
-  }
-
-  cleaned <- matching_lines |>
-    str_replace(regex(organization_pattern, ignore_case = TRUE), "") |>
-    str_replace_all("^[,:;\\-]+|[,:;\\-]+$", "") |>
-    str_squish() |>
+  lines <- str_split(page_text, "\\n+", simplify = FALSE)[[1]] |>
+    normalize_text() |>
     discard(~ !nzchar(.x))
 
-  if (length(cleaned) == 0) {
+  org_line_idx <- which(str_detect(lines, regex(organization_pattern, ignore_case = TRUE)))
+  if (length(org_line_idx) == 0) {
     return(NA_character_)
   }
 
-  paste(unique(cleaned), collapse = " | ")
+  looks_like_person <- function(x) {
+    str_detect(
+      x,
+      "^[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+(?:\\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’.-]+){1,4}$"
+    )
+  }
+
+  representative_lines <- map(org_line_idx, function(idx) {
+    following <- lines[(idx + 1):min(length(lines), idx + 10)]
+    following <- following[!str_detect(following, regex(organization_pattern, ignore_case = TRUE))]
+    following <- following[!str_detect(following, "^(witnesses|appearing|panel|meeting|study|clause|agenda)\\b", ignore_case = TRUE)]
+    following[looks_like_person(following)]
+  }) |>
+    unlist(use.names = FALSE) |>
+    unique()
+
+  if (length(representative_lines) == 0) {
+    return(NA_character_)
+  }
+
+  paste(representative_lines, collapse = " | ")
 }
 
 parse_house_notice <- function(notice_url, organization_name, organization_pattern, twitter_map) {
@@ -244,15 +255,16 @@ parse_house_notice <- function(notice_url, organization_name, organization_patte
 }
 
 extract_senate_notice_urls <- function() {
-  schedule_url <- sprintf("%s/en/committees/allmeetings/", SENATE_BASE_URL)
-  doc <- fetch_html(schedule_url)
+  notices_feed_url <- sprintf("%s/en/committees/noticesofmeeting/feed/", SENATE_BASE_URL)
+  feed_doc <- fetch_html(notices_feed_url)
 
-  doc |>
-    html_elements(xpath = "//a[contains(@href, '/noticeofmeeting/')]") |>
-    html_attr("href") |>
+  feed_doc |>
+    html_elements("item > link, entry > link") |>
+    html_text2() |>
     unique() |>
     discard(is.na) |>
     discard(~ !nzchar(.x)) |>
+    keep(~ str_detect(.x, "/noticeofmeeting/")) |>
     map_chr(make_absolute_url, base = SENATE_BASE_URL)
 }
 
