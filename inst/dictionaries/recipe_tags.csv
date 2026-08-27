@@ -1,0 +1,11 @@
+tag_name,tag_type,description
+rapide,rule,Temps total de préparation et cuisson de 20 minutes ou moins
+vegetarien,diet,Recette sans viande ni poisson détectés
+mediterraneen,diet,Profil cuisine méditerranéenne
+sante,health,Recette alignée avec des objectifs santé généraux
+asiatique,cuisine,Profil cuisine asiatique
+mexicain,cuisine,Profil cuisine mexicaine
+bbq,technique,Recette adaptée au barbecue ou grill
+comfort_food,style,Plat réconfortant
+ete,season,Adapté aux repas estivaux
+hiver,season,Adapté aux repas d'hiver
