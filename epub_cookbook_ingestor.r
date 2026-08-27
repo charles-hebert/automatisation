@@ -52,11 +52,19 @@ CREATE TABLE IF NOT EXISTS ingredients_raw (
 
 CREATE TABLE IF NOT EXISTS ingredients (
   id SERIAL PRIMARY KEY,
+  raw_ingredient_id INTEGER UNIQUE REFERENCES ingredients_raw(id) ON DELETE CASCADE,
   recipe_id INTEGER REFERENCES recipes(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   quantity NUMERIC,
   unit TEXT
 );
+
+ALTER TABLE ingredients
+  ADD COLUMN IF NOT EXISTS raw_ingredient_id INTEGER REFERENCES ingredients_raw(id) ON DELETE CASCADE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ingredients_raw_ingredient_id_key
+  ON ingredients(raw_ingredient_id)
+  WHERE raw_ingredient_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS ingredient_alias (
   alias TEXT PRIMARY KEY,
@@ -246,7 +254,8 @@ normalize_ingredients <- function(con, config = CONFIG) {
     con,
     "SELECT ir.id, ir.recipe_id, ir.raw_text
        FROM ingredients_raw ir
-      LEFT JOIN ingredients i ON i.recipe_id = ir.recipe_id AND i.name = ir.raw_text
+       LEFT JOIN ingredients i ON i.raw_ingredient_id = ir.id
+      WHERE i.id IS NULL
       ORDER BY ir.id"
   )
 
@@ -278,10 +287,10 @@ normalize_ingredients <- function(con, config = CONFIG) {
 
     dbExecute(
       con,
-      "INSERT INTO ingredients (recipe_id, name, quantity, unit)
-       VALUES ($1,$2,$3,$4)
-       ON CONFLICT DO NOTHING",
-      params = list(as.integer(r[["recipe_id"]]), canonical, parsed$quantity, parsed$unit)
+      "INSERT INTO ingredients (raw_ingredient_id, recipe_id, name, quantity, unit)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (raw_ingredient_id) DO NOTHING",
+      params = list(as.integer(r[["id"]]), as.integer(r[["recipe_id"]]), canonical, parsed$quantity, parsed$unit)
     )
   })
 
