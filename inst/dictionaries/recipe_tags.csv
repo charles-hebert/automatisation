@@ -2,10 +2,19 @@ tag_name,tag_type,description
 rapide,rule,Temps total de préparation et cuisson de 20 minutes ou moins
 vegetarien,diet,Recette sans viande ni poisson détectés
 mediterraneen,diet,Profil cuisine méditerranéenne
+MIND,diet,Profil diète MIND
 sante,health,Recette alignée avec des objectifs santé généraux
 asiatique,cuisine,Profil cuisine asiatique
 mexicain,cuisine,Profil cuisine mexicaine
 bbq,technique,Recette adaptée au barbecue ou grill
+actifry,technique,Recette adaptée à l'actifry
+instantpot,technique,Recette adaptée à l'instantpot
+mijoteuse,technique,Recette adaptée à la mijoteuse
 comfort_food,style,Plat réconfortant
+favori,style,Plat réalisé fréquemment
 ete,season,Adapté aux repas estivaux
 hiver,season,Adapté aux repas d'hiver
+plat principal,type,Plat principal
+accompagnement,type,Accompagnement
+collation,type,Collation
+déjeuner,type,Déjeuner
