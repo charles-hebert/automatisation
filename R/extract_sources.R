@@ -69,6 +69,13 @@ run_extraction_pipeline <- function(inbox_dir = "to_be_treated",
   db <- dbConnect(SQLite(), db_path)
   on.exit(dbDisconnect(db), add = TRUE)
   dbExecute(db, "PRAGMA foreign_keys = ON;")
+  if (!dbExistsTable(db, "raw_sources")) {
+    stop(
+      "Recipe database is not initialized at: ", normalizePath(db_path, mustWork = FALSE),
+      ". Run init_recipe_db(db_path) before extraction.",
+      call. = FALSE
+    )
+  }
 
   files <- list.files(inbox_dir, full.names = TRUE, recursive = TRUE)
   files <- files[file.info(files)$isdir %in% FALSE]
@@ -96,10 +103,11 @@ run_extraction_pipeline <- function(inbox_dir = "to_be_treated",
 
     tryCatch({
       raw_content <- extract_source_content(file_path, file_type)
+      book_id_param <- if (is.null(default_book_id)) NA_integer_ else default_book_id
       dbExecute(db, "
         INSERT INTO raw_sources (book_id, file_hash, file_name, file_type, raw_content, status)
         VALUES (?, ?, ?, ?, ?, 'pending')
-      ", params = list(default_book_id, file_hash, file_name, file_type, raw_content))
+      ", params = list(book_id_param, file_hash, file_name, file_type, raw_content))
 
       destination <- file.path(treated_dir, file_name)
       if (file.exists(destination)) {
