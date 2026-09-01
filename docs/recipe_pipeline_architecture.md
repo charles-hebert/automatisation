@@ -39,3 +39,16 @@ run_extraction_pipeline("to_be_treated", "treated", "recipes.db")
 run_parsing_pipeline(Sys.getenv("OPENROUTER_API_KEY"), "recipes.db")
 run_tagging_pipeline(Sys.getenv("OPENROUTER_API_KEY"), "recipes.db")
 ```
+
+## Diagnostic : aucune source en attente de parsing
+
+`run_parsing_pipeline()` ne lit pas les fichiers dans `to_be_treated` ou `treated` : il lit uniquement les lignes de `raw_sources` dont `status = 'pending'` dans la base indiquée par `db_path`.
+
+Si le message indique qu'il n'y a aucune source en attente alors qu'un fichier est encore présent dans le répertoire d'entrée, relancez l'extraction avec le **même** chemin de base, puis relancez le parsing :
+
+```r
+run_extraction_pipeline("to_be_treated", "treated", "recipes.db")
+run_parsing_pipeline(Sys.getenv("OPENROUTER_API_KEY"), "recipes.db")
+```
+
+La première extraction exécutée avec une version antérieure qui passait `default_book_id = NULL` pouvait échouer avant d'insérer la ligne `raw_sources`; le fichier restait alors dans l'entrée et il n'y avait donc rien à parser. Le message de parsing affiche désormais le chemin absolu de la base et le nombre de sources par statut pour faciliter ce diagnostic.

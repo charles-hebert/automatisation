@@ -35,6 +35,20 @@ safe_number <- function(x, default = 0) {
   as.numeric(x)
 }
 
+source_status_counts <- function(db) {
+  dbGetQuery(db, "
+    SELECT status, COUNT(*) AS source_count
+    FROM raw_sources
+    GROUP BY status
+    ORDER BY status
+  ")
+}
+
+format_source_status_counts <- function(counts) {
+  if (nrow(counts) == 0) return("no staged sources")
+  paste(sprintf("%s=%s", counts$status, counts$source_count), collapse = ", ")
+}
+
 insert_recipe <- function(db, rec, source_id, book_id) {
   ingredients <- rec$ingredients %||% list()
   instructions <- rec$instructions %||% list()
@@ -87,6 +101,13 @@ run_parsing_pipeline <- function(api_key, db_path = "recipes.db", model = "googl
   db <- dbConnect(SQLite(), db_path)
   on.exit(dbDisconnect(db), add = TRUE)
   dbExecute(db, "PRAGMA foreign_keys = ON;")
+  if (!dbExistsTable(db, "raw_sources")) {
+    stop(
+      "Recipe database is not initialized at: ", normalizePath(db_path, mustWork = FALSE),
+      ". Run init_recipe_db(db_path) and run_extraction_pipeline(..., db_path) first.",
+      call. = FALSE
+    )
+  }
 
   pending <- dbGetQuery(db, "
     SELECT source_id, book_id, file_type, raw_content
@@ -96,7 +117,12 @@ run_parsing_pipeline <- function(api_key, db_path = "recipes.db", model = "googl
   ")
   if (is.finite(limit)) pending <- utils::head(pending, limit)
   if (nrow(pending) == 0) {
-    message("No pending sources to parse.")
+    counts <- format_source_status_counts(source_status_counts(db))
+    message(
+      "No pending sources to parse in ", normalizePath(db_path, mustWork = FALSE),
+      " (", counts, "). ",
+      "A file in the inbox is not staged automatically; run run_extraction_pipeline() with this same db_path first."
+    )
     return(invisible(NULL))
   }
 
