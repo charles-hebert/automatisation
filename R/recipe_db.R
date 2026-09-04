@@ -88,6 +88,18 @@ init_recipe_db <- function(db_path = "recipes.db") {
       tag_source TEXT NOT NULL DEFAULT 'rule' CHECK(tag_source IN ('rule', 'ontology', 'llm', 'manual')),
       PRIMARY KEY (recipe_id, tag_name),
       FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE
+    )",
+    "CREATE TABLE IF NOT EXISTS grocery_deals (
+      deal_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchant TEXT NOT NULL,
+      name TEXT NOT NULL,
+      current_price TEXT,
+      pre_price TEXT,
+      valid_to TEXT,
+      category TEXT,
+      matched_canonical_ingredient TEXT,
+      postal_code TEXT,
+      fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )"
   )
 
@@ -96,7 +108,9 @@ init_recipe_db <- function(db_path = "recipes.db") {
   indexes <- c(
     "CREATE INDEX IF NOT EXISTS idx_raw_sources_status ON raw_sources(status)",
     "CREATE INDEX IF NOT EXISTS idx_ingredients_canonical ON ingredients(canonical_name)",
-    "CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_name)"
+    "CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_name)",
+    "CREATE INDEX IF NOT EXISTS idx_grocery_deals_merchant ON grocery_deals(merchant)",
+    "CREATE INDEX IF NOT EXISTS idx_grocery_deals_matched ON grocery_deals(matched_canonical_ingredient)"
   )
   for (idx in indexes) dbExecute(db, idx)
 
