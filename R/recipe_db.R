@@ -100,6 +100,16 @@ init_recipe_db <- function(db_path = "recipes.db") {
       matched_canonical_ingredient TEXT,
       postal_code TEXT,
       fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )",
+    "CREATE TABLE IF NOT EXISTS inventory (
+      inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      raw_ingredient TEXT NOT NULL,
+      canonical_name TEXT,
+      location TEXT,
+      expiry_days_left INTEGER,
+      expiry_date TEXT,
+      is_pantry_staple INTEGER DEFAULT 0 CHECK(is_pantry_staple IN (0, 1)),
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )"
   )
 
@@ -110,7 +120,8 @@ init_recipe_db <- function(db_path = "recipes.db") {
     "CREATE INDEX IF NOT EXISTS idx_ingredients_canonical ON ingredients(canonical_name)",
     "CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_name)",
     "CREATE INDEX IF NOT EXISTS idx_grocery_deals_merchant ON grocery_deals(merchant)",
-    "CREATE INDEX IF NOT EXISTS idx_grocery_deals_matched ON grocery_deals(matched_canonical_ingredient)"
+    "CREATE INDEX IF NOT EXISTS idx_grocery_deals_matched ON grocery_deals(matched_canonical_ingredient)",
+    "CREATE INDEX IF NOT EXISTS idx_inventory_canonical ON inventory(canonical_name)"
   )
   for (idx in indexes) dbExecute(db, idx)
 
