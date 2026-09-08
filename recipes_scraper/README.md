@@ -1,16 +1,17 @@
 # Recipe Scraper (R Project)
 
-This project does exactly the 2-step workflow you asked for:
+This project does a 3-step workflow:
 
 1. Read a website sitemap and extract a list of recipe URLs.
 2. Let user select recipes with a `selected` y/n column in CSV, then scrape only selected recipe pages.
+3. Import scraped recipes CSV into the SQLite database (`raw_sources` table).
 
 ## Setup
 
 From the project root (`recipes_scraper`), install packages once:
 
 ```r
-install.packages(c("xml2", "rvest", "readr", "dplyr", "stringr", "purrr"))
+install.packages(c("xml2", "rvest", "readr", "dplyr", "stringr", "purrr", "jsonlite", "digest", "DBI", "RSQLite"))
 ```
 
 ## Step 1: Extract recipe links from sitemap
@@ -51,6 +52,16 @@ Output columns:
 - `title`
 - `ingredients`
 - `instructions`
+
+## Step 3: Import scraped recipes into SQLite database
+
+```bash
+Rscript scripts/03_import_to_db.R \
+  "data/selected_recipes_scraped.csv" \
+  "recipes.db"
+```
+
+This inserts or updates raw recipe entries in the `raw_sources` table with `file_type = 'url'` and `status = 'pending'`, ready for downstream parsing via `R/parse_recipes.R`.
 
 ## Notes
 

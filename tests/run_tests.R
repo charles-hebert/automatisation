@@ -18,11 +18,12 @@ for (pkg in required_pkgs) {
   suppressPackageStartupMessages(library(pkg, character.only = TRUE))
 }
 
-message("=== Running Ottawa Grocery Deals Test Suite ===")
-test_results <- testthat::test_file("tests/test_grocery_deals.R")
+message("=== Running Test Suite ===")
+test_results <- testthat::test_dir("tests")
 print(test_results)
 
-if (any(as.data.frame(test_results)$failed > 0) || any(as.data.frame(test_results)$error)) {
+res_df <- as.data.frame(test_results)
+if (any(res_df$failed > 0) || any(res_df$error)) {
   stop("Some tests failed!")
 } else {
   message("All tests passed successfully!")

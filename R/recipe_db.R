@@ -25,7 +25,7 @@ init_recipe_db <- function(db_path = "recipes.db") {
       book_id INTEGER,
       file_hash TEXT UNIQUE NOT NULL,
       file_name TEXT NOT NULL,
-      file_type TEXT NOT NULL CHECK(file_type IN ('epub', 'pdf', 'image')),
+      file_type TEXT NOT NULL CHECK(file_type IN ('epub', 'pdf', 'image', 'url')),
       raw_content TEXT,
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'parsed', 'error')),
       error_message TEXT,
