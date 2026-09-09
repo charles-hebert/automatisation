@@ -21,7 +21,7 @@ load_forbidden_rules <- function(config_path = "config/forbidden_rules.yml") {
   defaults <- list(
     forbidden_always_ingredients = c("orzo", "spaghettini", "cheveux d'ange", "soba"),
     forbidden_always_tags = c("forbidden"),
-    forbidden_with_f_ingredients = c("arachide", "peanut", "coriander", "cilantro"),
+    forbidden_with_f_ingredients = c("cucumber", "concombre", "jambalaya", "risotto"),
     forbidden_with_f_tags = c("forbidden_f")
   )
   target_path <- NULL
