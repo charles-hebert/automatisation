@@ -11,10 +11,10 @@ forbidden_always_tags:
   - forbidden
 
 forbidden_with_f_ingredients:
-  - arachide
-  - peanut
-  - coriander
-  - cilantro
+  - cucumber
+  - concombre
+  - risotto
+  - jambalaya
 
 forbidden_with_f_tags:
   - forbidden_f
