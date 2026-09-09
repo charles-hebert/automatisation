@@ -6,8 +6,18 @@ suppressPackageStartupMessages({
   library(jsonlite)
 })
 
-source("R/recipe_db.R")
-source("recipes_scraper/scripts/03_import_to_db.R")
+find_and_source <- function(rel_path) {
+  if (file.exists(rel_path)) {
+    source(rel_path)
+  } else if (file.exists(file.path("..", rel_path))) {
+    source(file.path("..", rel_path))
+  } else {
+    stop("Could not find file: ", rel_path)
+  }
+}
+
+find_and_source("R/recipe_db.R")
+find_and_source("recipes_scraper/scripts/03_import_to_db.R")
 
 testthat::test_that("init_recipe_db creates raw_sources table supporting file_type 'url'", {
   temp_db <- tempfile(fileext = ".db")

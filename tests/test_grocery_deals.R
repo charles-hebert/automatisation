@@ -1,16 +1,17 @@
 # Defensive package loading for tests
-if (!exists("ensure_packages", mode = "function")) {
-  if (file.exists("R/grocery_deals.R")) {
-    source("R/grocery_deals.R")
+find_and_source <- function(rel_path) {
+  if (file.exists(rel_path)) {
+    source(rel_path)
+  } else if (file.exists(file.path("..", rel_path))) {
+    source(file.path("..", rel_path))
   } else {
-    stop("R/grocery_deals.R not found.")
+    stop("Could not find file: ", rel_path)
   }
 }
 
+find_and_source("R/grocery_deals.R")
 ensure_packages(c("httr2", "jsonlite", "dplyr", "purrr", "DBI", "RSQLite", "testthat"))
-
-source("R/recipe_db.R")
-source("R/grocery_deals.R")
+find_and_source("R/recipe_db.R")
 
 testthat::test_that("ensure_packages handles package verification", {
   testthat::expect_silent(ensure_packages(c("dplyr", "jsonlite")))

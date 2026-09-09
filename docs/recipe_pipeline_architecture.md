@@ -26,6 +26,8 @@ Le code est séparé en étapes idempotentes :
 - Ajouter une étape OCR locale pour les PDF scannés avant l'appel LLM.
 - Introduire des tests unitaires avec une petite base SQLite temporaire et des fixtures PDF/EPUB/images minimales.
 - Normaliser davantage les ingrédients avec un dictionnaire bilingue français/anglais pour les protéines, allergènes, saisons et unités.
+- **Extraction et enrichissement nutritionnel**: Étendre `R/parse_recipes.R` et le prompt JSON pour extraire directement les valeurs nutritionnelles (`fiber_g`, `protein_g`, `magnesium_mg`, `gut_health_score`) à partir du texte de la recette, ou intégrer une table de référence USDA/CIQUAL sur `ingredients.canonical_name` afin de calculer automatiquement les apports nutritionnels par portion.
+- **Règles dynamiques de restrictions et tags**: Utiliser les fichiers de configuration YML (`config/forbidden_rules.yml`, `config/soft_blacklist.yml`) pour centraliser les listes d'ingrédients interdits ou restreints sans modifier la structure SQLite.
 
 ## Exemple d'utilisation
 
