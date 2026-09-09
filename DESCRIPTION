@@ -1,0 +1,27 @@
+Package: mealplan
+Type: Package
+Title: Weekly Meal Plan Optimizer
+Version: 0.1.0
+Authors@R: person("Charles", "Hebert", role = c("aut", "cre"))
+Description: Weekly meal plan optimization using MILP (ompr, ompr.roi, ROI.plugin.glpk).
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.3.1
+Imports:
+    DBI,
+    dplyr,
+    jsonlite,
+    ompr,
+    ompr.roi,
+    purrr,
+    readr,
+    readxl,
+    ROI,
+    ROI.plugin.glpk,
+    RSQLite,
+    stringr,
+    targets,
+    tibble,
+    yaml
+Suggests:
+    testthat (>= 3.0.0)

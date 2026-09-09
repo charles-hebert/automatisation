@@ -1,0 +1,20 @@
+# Forbidden rules configuration
+# Note: 'f' represents the person (e.g. f_present)
+
+forbidden_always_ingredients:
+  - orzo
+  - spaghettini
+  - cheveux d'ange
+  - soba
+
+forbidden_always_tags:
+  - forbidden
+
+forbidden_with_f_ingredients:
+  - arachide
+  - peanut
+  - coriander
+  - cilantro
+
+forbidden_with_f_tags:
+  - forbidden_f

@@ -1,0 +1,10 @@
+# TODO: Fill in soft-blacklist recipes or tags (less than 1 meal/week constraint)
+# Example:
+# soft_blacklist_tags:
+#   - fast_food
+#   - fritures
+# soft_blacklist_recipe_ids:
+#   - "rec_123"
+
+soft_blacklist_tags: []
+soft_blacklist_recipe_ids: []

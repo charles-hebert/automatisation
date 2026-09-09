@@ -72,19 +72,21 @@ import_scraped_recipes <- function(csv_path, db_path = "recipes.db", default_boo
 
     existing <- dbGetQuery(db, "SELECT source_id FROM raw_sources WHERE file_hash = ?", params = list(url_hash))
 
+    b_id_param <- if (is.null(default_book_id)) NA_integer_ else default_book_id
+
     if (nrow(existing) > 0) {
       src_id <- existing$source_id[[1]]
       dbExecute(db, "
         UPDATE raw_sources
         SET book_id = ?, file_name = ?, raw_content = ?, status = 'pending', error_message = NULL
         WHERE source_id = ?
-      ", params = list(default_book_id, url_val, raw_content_json, src_id))
+      ", params = list(b_id_param, url_val, raw_content_json, src_id))
       updated_count <- updated_count + 1
     } else {
       dbExecute(db, "
         INSERT INTO raw_sources (book_id, file_hash, file_name, file_type, raw_content, status)
         VALUES (?, ?, ?, 'url', ?, 'pending')
-      ", params = list(default_book_id, url_hash, url_val, raw_content_json))
+      ", params = list(b_id_param, url_hash, url_val, raw_content_json))
       imported_count <- imported_count + 1
     }
   }
