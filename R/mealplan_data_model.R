@@ -103,6 +103,35 @@ validate_recipes <- function(recipes_df) {
   invisible(TRUE)
 }
 
+load_seasonal_ingredients <- function(dict_path = "inst/dictionaries/seasonal_ingredients.csv", target_month = "September") {
+  target_path <- NULL
+  for (candidate in c(dict_path, file.path("..", dict_path), file.path("../..", dict_path))) {
+    if (!is.null(candidate) && file.exists(candidate)) {
+      target_path <- candidate
+      break
+    }
+  }
+
+  if (is.null(target_path) || !file.exists(target_path)) {
+    return(character(0))
+  }
+
+  seasonal_df <- tryCatch(readr::read_csv(target_path, show_col_types = FALSE), error = function(e) NULL)
+  if (is.null(seasonal_df) || nrow(seasonal_df) == 0) return(character(0))
+
+  month_col <- colnames(seasonal_df)[grep("month", colnames(seasonal_df), ignore.case = TRUE)][1]
+  ing_col <- colnames(seasonal_df)[grep("ingredient", colnames(seasonal_df), ignore.case = TRUE)][1]
+
+  if (is.na(month_col) || is.na(ing_col)) return(character(0))
+
+  filtered <- seasonal_df |>
+    dplyr::filter(tolower(trimws(.data[[month_col]])) == tolower(trimws(target_month)))
+
+  items <- tolower(trimws(filtered[[ing_col]]))
+  items <- items[!is.na(items) & items != ""]
+  return(unique(items))
+}
+
 load_recipe_dataset <- function(db_path = "recipes.db",
                                 recipes_df = NULL,
                                 tags_df = NULL,
@@ -112,6 +141,8 @@ load_recipe_dataset <- function(db_path = "recipes.db",
                                 inventory_df = NULL,
                                 forbidden_config = "config/forbidden_rules.yml",
                                 soft_blacklist_config = "config/soft_blacklist.yml",
+                                seasonal_dict_path = "inst/dictionaries/seasonal_ingredients.csv",
+                                target_month = "September",
                                 selected_book_ids = NULL,
                                 last_used_dates = NULL) {
   f_rules <- load_forbidden_rules(forbidden_config)
@@ -299,9 +330,16 @@ load_recipe_dataset <- function(db_path = "recipes.db",
     }
     gs_matches <- as.integer(gs_matches)
 
+    # Load seasonal ingredients for target month
+    seasonal_items <- load_seasonal_ingredients(dict_path = seasonal_dict_path, target_month = target_month)
+
     s_matches <- get_col("seasonal_matches", NULL)
     if (is.null(s_matches)) {
-      s_matches <- if (any(c("saison", "ete", "automne", "printemps", "hiver") %in% row_tags)) 1L else 0L
+      if (length(seasonal_items) > 0 && length(row_ings) > 0) {
+        s_matches <- sum(sapply(seasonal_items, function(s_item) any(grepl(s_item, row_ings, fixed = TRUE))))
+      } else {
+        s_matches <- if (any(c("saison", "ete", "automne", "printemps", "hiver") %in% row_tags)) 1L else 0L
+      }
     }
     s_matches <- as.integer(s_matches)
 
