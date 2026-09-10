@@ -110,6 +110,13 @@ init_recipe_db <- function(db_path = "recipes.db") {
       expiry_date TEXT,
       is_pantry_staple INTEGER DEFAULT 0 CHECK(is_pantry_staple IN (0, 1)),
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )",
+    "CREATE TABLE IF NOT EXISTS mealplan_reports (
+      report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_label TEXT,
+      report_markdown TEXT NOT NULL,
+      model_used TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )"
   )
 
@@ -121,7 +128,8 @@ init_recipe_db <- function(db_path = "recipes.db") {
     "CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_name)",
     "CREATE INDEX IF NOT EXISTS idx_grocery_deals_merchant ON grocery_deals(merchant)",
     "CREATE INDEX IF NOT EXISTS idx_grocery_deals_matched ON grocery_deals(matched_canonical_ingredient)",
-    "CREATE INDEX IF NOT EXISTS idx_inventory_canonical ON inventory(canonical_name)"
+    "CREATE INDEX IF NOT EXISTS idx_inventory_canonical ON inventory(canonical_name)",
+    "CREATE INDEX IF NOT EXISTS idx_mealplan_reports_created ON mealplan_reports(created_at)"
   )
   for (idx in indexes) dbExecute(db, idx)
 

@@ -262,62 +262,87 @@ clean_ingredient_text <- function(text) {
   ifelse(cleaned == "", tolower(trimws(text)), cleaned)
 }
 
-#' Match cleaned ingredient against SQLite database canonical names
+load_bilingual_dictionary <- function(dict_path = "inst/dictionaries/bilingual_ingredients.csv") {
+  target_path <- NULL
+  for (candidate in c(dict_path, file.path("..", dict_path), file.path("../..", dict_path))) {
+    if (!is.null(candidate) && file.exists(candidate)) {
+      target_path <- candidate
+      break
+    }
+  }
+  if (!is.null(target_path) && file.exists(target_path)) {
+    return(tryCatch(readr::read_csv(target_path, show_col_types = FALSE), error = function(e) NULL))
+  }
+  return(NULL)
+}
+
+#' Match cleaned ingredient against SQLite database canonical names and bilingual dictionary
 #'
 #' @param cleaned_texts Vector of cleaned ingredient strings
 #' @param db_path SQLite database path
+#' @param dict_path Path to bilingual ingredients dictionary
 #' @return Vector of canonical ingredient names
-match_canonical_names <- function(cleaned_texts, db_path = NULL) {
+match_canonical_names <- function(cleaned_texts, db_path = NULL, dict_path = "inst/dictionaries/bilingual_ingredients.csv") {
   if (length(cleaned_texts) == 0) return(character(0))
 
+  known_map <- list()
   known_canonicals <- character(0)
+
+  bilingual_df <- load_bilingual_dictionary(dict_path)
+  if (!is.null(bilingual_df) && nrow(bilingual_df) > 0) {
+    for (r in seq_len(nrow(bilingual_df))) {
+      can <- tolower(trimws(bilingual_df$canonical_name[r]))
+      fr <- tolower(trimws(bilingual_df$french_name[r]))
+      en <- tolower(trimws(bilingual_df$english_name[r]))
+      if (nzchar(can)) {
+        known_canonicals <- c(known_canonicals, can)
+        known_map[[can]] <- can
+        if (nzchar(fr)) { known_canonicals <- c(known_canonicals, fr); known_map[[fr]] <- can }
+        if (nzchar(en)) { known_canonicals <- c(known_canonicals, en); known_map[[en]] <- can }
+      }
+    }
+  }
+
   if (!is.null(db_path) && file.exists(db_path)) {
     conn <- tryCatch(DBI::dbConnect(RSQLite::SQLite(), db_path), error = function(e) NULL)
     if (!is.null(conn)) {
       on.exit(DBI::dbDisconnect(conn), add = TRUE)
       if (DBI::dbExistsTable(conn, "ingredients")) {
         res <- DBI::dbGetQuery(conn, "SELECT DISTINCT canonical_name FROM ingredients WHERE canonical_name IS NOT NULL AND canonical_name != ''")
-        known_canonicals <- c(known_canonicals, res$canonical_name)
+        for (cn in res$canonical_name) {
+          lcn <- tolower(cn)
+          known_canonicals <- c(known_canonicals, lcn)
+          if (is.null(known_map[[lcn]])) known_map[[lcn]] <- lcn
+        }
       }
-      if (DBI::dbExistsTable(conn, "ontology_nodes")) {
-        res_ont <- DBI::dbGetQuery(conn, "SELECT name FROM ontology_nodes WHERE node_type = 'ingredient'")
-        known_canonicals <- c(known_canonicals, res_ont$name)
-      }
-      known_canonicals <- unique(known_canonicals)
     }
   }
 
+  known_canonicals <- unique(known_canonicals)
+
   sapply(cleaned_texts, function(item) {
     if (is.na(item) || item == "") return(NA_character_)
+    item_lower <- tolower(item)
 
-    if (length(known_canonicals) == 0) return(item)
+    if (length(known_canonicals) == 0) return(item_lower)
 
-    # 1. Exact match (case insensitive)
-    exact_idx <- which(tolower(known_canonicals) == tolower(item))
-    if (length(exact_idx) > 0) return(known_canonicals[exact_idx[1]])
+    # 1. Direct key match
+    if (!is.null(known_map[[item_lower]])) return(known_map[[item_lower]])
 
     # 2. Substring / Grep match
     sub_matches <- known_canonicals[sapply(known_canonicals, function(k) {
-      grepl(k, item, ignore.case = TRUE) || grepl(item, k, ignore.case = TRUE)
+      grepl(paste0("\\b", k, "\\b"), item_lower, ignore.case = TRUE) || grepl(paste0("\\b", item_lower, "\\b"), k, ignore.case = TRUE)
     })]
 
     if (length(sub_matches) > 0) {
-      # Return longest matching string
       sub_matches <- sub_matches[order(nchar(sub_matches), decreasing = TRUE)]
-      return(sub_matches[1])
-    }
-
-    # 3. String distance match if stringdist available
-    if (requireNamespace("stringdist", quietly = TRUE)) {
-      dists <- stringdist::stringdist(tolower(item), tolower(known_canonicals), method = "jw")
-      min_dist_idx <- which.min(dists)
-      if (length(min_dist_idx) > 0 && dists[min_dist_idx] < 0.25) {
-        return(known_canonicals[min_dist_idx])
-      }
+      best <- sub_matches[1]
+      val <- known_map[[best]]
+      return(if (!is.null(val)) val else best)
     }
 
     # Default fallback to cleaned item
-    return(item)
+    return(item_lower)
   }, USE.NAMES = FALSE)
 }
 

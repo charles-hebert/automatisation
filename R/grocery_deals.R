@@ -134,33 +134,76 @@ extract_grocery_deals <- function(postal_code = "K2C 1K1",
   return(filtered_deals)
 }
 
-# 3. Match deals to canonical ingredient names from SQLite database
-match_deals_to_ingredients <- function(deals, db_path = NULL, canonical_list = NULL) {
+# 3. Match deals to canonical ingredient names using SQLite database and bilingual dictionary
+match_deals_to_ingredients <- function(deals, db_path = NULL, canonical_list = NULL, dict_path = "inst/dictionaries/bilingual_ingredients.csv") {
   if (nrow(deals) == 0) {
     deals$matched_canonical_ingredient <- character(0)
     return(deals)
   }
 
-  known_canonicals <- character(0)
+  known_map <- list()
+  known_terms <- character(0)
+
+  # Load bilingual dictionary
+  target_dict_path <- NULL
+  for (candidate in c(dict_path, file.path("..", dict_path), file.path("../..", dict_path))) {
+    if (!is.null(candidate) && file.exists(candidate)) {
+      target_dict_path <- candidate
+      break
+    }
+  }
+
+  if (!is.null(target_dict_path) && file.exists(target_dict_path)) {
+    bilingual_df <- tryCatch(readr::read_csv(target_dict_path, show_col_types = FALSE), error = function(e) NULL)
+    if (!is.null(bilingual_df) && nrow(bilingual_df) > 0) {
+      for (r in seq_len(nrow(bilingual_df))) {
+        can <- tolower(trimws(bilingual_df$canonical_name[r]))
+        fr <- tolower(trimws(bilingual_df$french_name[r]))
+        en <- tolower(trimws(bilingual_df$english_name[r]))
+        if (nzchar(can)) {
+          known_terms <- c(known_terms, can)
+          known_map[[can]] <- can
+          if (nzchar(fr)) { known_terms <- c(known_terms, fr); known_map[[fr]] <- can }
+          if (nzchar(en)) { known_terms <- c(known_terms, en); known_map[[en]] <- can }
+        }
+      }
+    }
+  }
+
   if (!is.null(canonical_list)) {
-    known_canonicals <- canonical_list
+    for (cn in canonical_list) {
+      lcn <- tolower(cn)
+      known_terms <- c(known_terms, lcn)
+      if (is.null(known_map[[lcn]])) known_map[[lcn]] <- lcn
+    }
   } else if (!is.null(db_path) && file.exists(db_path)) {
     conn <- DBI::dbConnect(RSQLite::SQLite(), db_path)
     on.exit(DBI::dbDisconnect(conn), add = TRUE)
     if (DBI::dbExistsTable(conn, "ingredients")) {
       res <- DBI::dbGetQuery(conn, "SELECT DISTINCT canonical_name FROM ingredients WHERE canonical_name IS NOT NULL AND canonical_name != ''")
-      known_canonicals <- res$canonical_name
+      for (cn in res$canonical_name) {
+        lcn <- tolower(cn)
+        known_terms <- c(known_terms, lcn)
+        if (is.null(known_map[[lcn]])) known_map[[lcn]] <- lcn
+      }
     }
   }
 
+  known_terms <- unique(known_terms)
+
   matched <- sapply(deals$name, function(deal_name) {
-    if (length(known_canonicals) == 0 || is.na(deal_name)) return(NA_character_)
-    matches <- known_canonicals[sapply(known_canonicals, function(ing) {
-      grepl(ing, deal_name, ignore.case = TRUE)
+    if (length(known_terms) == 0 || is.na(deal_name) || !nzchar(deal_name)) return(NA_character_)
+    dname <- tolower(deal_name)
+
+    matches <- known_terms[sapply(known_terms, function(term) {
+      grepl(paste0("\\b", term, "\\b"), dname, ignore.case = TRUE)
     })]
+
     if (length(matches) > 0) {
       matches <- matches[order(nchar(matches), decreasing = TRUE)]
-      return(matches[1])
+      best <- matches[1]
+      val <- known_map[[best]]
+      return(if (!is.null(val)) val else best)
     }
     return(NA_character_)
   })
