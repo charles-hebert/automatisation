@@ -15,7 +15,7 @@ cauliflower,chou-fleur,cauliflower,produce
 celery,céleri,celery,produce
 cheese,fromage,cheese,dairy
 chicken,poulet,chicken,meat
-coffee,café,coffee,beverage
+coffee,café,coffee,pantry
 corn,maïs,corn,produce
 cucumber,concombre,cucumber,produce
 egg,oeuf,egg,dairy
@@ -44,6 +44,15 @@ rhubarb,rhubarbe,rhubarb,produce
 rice,riz,rice,pantry
 rutabaga,rutabaga,rutabaga,produce
 salmon,saumon,salmon,seafood
+canned tuna,thon en conserve, thon,pantry
+white flour,farine blanche, flour,pantry
+parmeggiano,parmesan,parmeggiano,pantry
+couscous,couscous,couscous,pantry
+spaghetti sauce,sauce à spaghetti,spaghetti sauce,pantry
+canned lentils,lentilles en conserves,pantry
+olive oil,huile d'olive,olive oil, pantry
+canned tomatoes,tomates en boîtes,canned tomatoes, pantry
+tomato pasta,pâte de tomates, tomato pasta, pantry
 spinach,épinard,spinach,produce
 squash,courge,squash,produce
 strawberry,fraise,strawberry,produce
