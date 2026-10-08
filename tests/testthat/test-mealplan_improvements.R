@@ -1,20 +1,47 @@
+library(testthat)
+library(DBI)
+library(RSQLite)
+
+find_and_source <- function(rel_path) {
+  if (file.exists(rel_path)) {
+    source(rel_path)
+  } else if (file.exists(file.path("../..", rel_path))) {
+    source(file.path("../..", rel_path))
+  } else if (file.exists(file.path("..", rel_path))) {
+    source(file.path("..", rel_path))
+  } else {
+    stop("Cannot find file: ", rel_path)
+  }
+}
+
+find_dict_file <- function(rel_path) {
+  if (file.exists(rel_path)) return(rel_path)
+  if (file.exists(file.path("../..", rel_path))) return(file.path("../..", rel_path))
+  if (file.exists(file.path("..", rel_path))) return(file.path("..", rel_path))
+  rel_path
+}
+
 test_that("Bilingual ingredient normalization works across French and English terms", {
-  source("../../R/extract_inventory.R", local = TRUE)
-  source("../../R/grocery_deals.R", local = TRUE)
+  find_and_source("R/extract_inventory.R")
+  find_and_source("R/grocery_deals.R")
+
+  bilingual_dict <- find_dict_file("inst/dictionaries/bilingual_ingredients.csv")
 
   # Check matching french to english canonical
-  matched_fr <- match_canonical_names(c("carotte", "pomme", "poulet"), dict_path = "../../inst/dictionaries/bilingual_ingredients.csv")
+  matched_fr <- match_canonical_names(c("carotte", "pomme", "poulet"), dict_path = bilingual_dict)
   expect_equal(matched_fr, c("carrot", "apple", "chicken"))
 
   deals_df <- data.frame(name = c("Fresh Carrots 2lb", "Filet de Poulet"), stringsAsFactors = FALSE)
-  matched_deals <- match_deals_to_ingredients(deals_df, dict_path = "../../inst/dictionaries/bilingual_ingredients.csv")
+  matched_deals <- match_deals_to_ingredients(deals_df, dict_path = bilingual_dict)
   expect_equal(matched_deals$matched_canonical_ingredient, c("carrot", "chicken"))
 })
 
 test_that("Configurable seasonality matching works with seasonal_ingredients.csv", {
-  source("../../R/mealplan_data_model.R", local = TRUE)
+  find_and_source("R/mealplan_data_model.R")
 
-  sep_items <- load_seasonal_ingredients(dict_path = "../../inst/dictionaries/seasonal_ingredients.csv", target_month = "September")
+  seasonal_dict <- find_dict_file("inst/dictionaries/seasonal_ingredients.csv")
+
+  sep_items <- load_seasonal_ingredients(dict_path = seasonal_dict, target_month = "September")
   expect_true("apples" %in% sep_items || "tomatoes" %in% sep_items || "peppers" %in% sep_items)
 
   # Test recipe dataset loading with seasonal matching
@@ -34,7 +61,7 @@ test_that("Configurable seasonality matching works with seasonal_ingredients.csv
   ds <- load_recipe_dataset(
     recipes_df = sample_recipes,
     ingredients_df = sample_ingredients,
-    seasonal_dict_path = "../../inst/dictionaries/seasonal_ingredients.csv",
+    seasonal_dict_path = seasonal_dict,
     target_month = "September"
   )
 
@@ -43,8 +70,8 @@ test_that("Configurable seasonality matching works with seasonal_ingredients.csv
 })
 
 test_that("LLM rationale report generation works and persists to SQLite database", {
-  source("../../R/recipe_db.R", local = TRUE)
-  source("../../R/mealplan_rationale.R", local = TRUE)
+  find_and_source("R/recipe_db.R")
+  find_and_source("R/mealplan_rationale.R")
 
   tmp_db <- tempfile(fileext = ".db")
   tmp_md <- tempfile(fileext = ".md")

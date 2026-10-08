@@ -5,6 +5,20 @@ suppressPackageStartupMessages({
   library(RSQLite)
 })
 
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
+
+find_dict_path <- function(rel_path) {
+  candidates <- c(
+    rel_path,
+    file.path("../..", rel_path),
+    file.path("..", rel_path)
+  )
+  for (cand in candidates) {
+    if (file.exists(cand)) return(cand)
+  }
+  rel_path
+}
+
 init_recipe_db <- function(db_path = "recipes.db") {
   db <- dbConnect(SQLite(), db_path)
   on.exit(dbDisconnect(db), add = TRUE)
@@ -54,6 +68,18 @@ init_recipe_db <- function(db_path = "recipes.db") {
       UNIQUE(recipe_id, step_number),
       FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE
     )",
+    "CREATE TABLE IF NOT EXISTS ingredients_ref (
+      ingredient_id INTEGER PRIMARY KEY,
+      canonical_name_fr TEXT NOT NULL,
+      canonical_name_en TEXT,
+      category TEXT
+    )",
+    "CREATE TABLE IF NOT EXISTS ingredient_synonyms (
+      synonym_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      synonym_text TEXT UNIQUE NOT NULL,
+      ingredient_id INTEGER NOT NULL,
+      FOREIGN KEY(ingredient_id) REFERENCES ingredients_ref(ingredient_id) ON DELETE CASCADE
+    )",
     "CREATE TABLE IF NOT EXISTS ingredients (
       ingredient_id INTEGER PRIMARY KEY AUTOINCREMENT,
       recipe_id INTEGER NOT NULL,
@@ -61,7 +87,29 @@ init_recipe_db <- function(db_path = "recipes.db") {
       canonical_name TEXT,
       quantity_num REAL,
       unit_standard TEXT,
+      ref_ingredient_id INTEGER DEFAULT 0,
+      match_method TEXT DEFAULT 'unmatched',
+      FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE,
+      FOREIGN KEY(ref_ingredient_id) REFERENCES ingredients_ref(ingredient_id) ON DELETE SET DEFAULT
+    )",
+    "CREATE TABLE IF NOT EXISTS recipe_tag_classifications (
+      classification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipe_id INTEGER NOT NULL,
+      tag_name TEXT NOT NULL,
+      tag_value TEXT NOT NULL,
+      confidence INTEGER NOT NULL CHECK(confidence >= 0 AND confidence <= 100),
+      status TEXT NOT NULL CHECK(status IN ('accepted', 'rejected', 'review')),
+      tag_source TEXT NOT NULL CHECK(tag_source IN ('rule', 'llm', 'manual')),
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(recipe_id, tag_name),
       FOREIGN KEY(recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE
+    )",
+    "CREATE TABLE IF NOT EXISTS llm_cache (
+      cache_key TEXT PRIMARY KEY,
+      model TEXT NOT NULL,
+      prompt_json TEXT,
+      response_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )",
     "CREATE TABLE IF NOT EXISTS recipe_equipment (
       recipe_id INTEGER NOT NULL,
@@ -125,7 +173,9 @@ init_recipe_db <- function(db_path = "recipes.db") {
   indexes <- c(
     "CREATE INDEX IF NOT EXISTS idx_raw_sources_status ON raw_sources(status)",
     "CREATE INDEX IF NOT EXISTS idx_ingredients_canonical ON ingredients(canonical_name)",
+    "CREATE INDEX IF NOT EXISTS idx_ingredients_ref ON ingredients(ref_ingredient_id)",
     "CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_name)",
+    "CREATE INDEX IF NOT EXISTS idx_recipe_tag_classifications_status ON recipe_tag_classifications(status)",
     "CREATE INDEX IF NOT EXISTS idx_grocery_deals_merchant ON grocery_deals(merchant)",
     "CREATE INDEX IF NOT EXISTS idx_grocery_deals_matched ON grocery_deals(matched_canonical_ingredient)",
     "CREATE INDEX IF NOT EXISTS idx_inventory_canonical ON inventory(canonical_name)",
@@ -133,6 +183,79 @@ init_recipe_db <- function(db_path = "recipes.db") {
   )
   for (idx in indexes) dbExecute(db, idx)
 
+  # Migration logic for existing tables if columns are missing
+  ing_cols <- dbGetQuery(db, "PRAGMA table_info(ingredients)")$name
+  if (!("ref_ingredient_id" %in% ing_cols)) {
+    dbExecute(db, "ALTER TABLE ingredients ADD COLUMN ref_ingredient_id INTEGER DEFAULT 0")
+  }
+  if (!("match_method" %in% ing_cols)) {
+    dbExecute(db, "ALTER TABLE ingredients ADD COLUMN match_method TEXT DEFAULT 'unmatched'")
+  }
+
+  # Create Power BI / Optimizer view
+  dbExecute(db, "
+    CREATE VIEW IF NOT EXISTS v_recipe_tags_accepted AS
+    SELECT recipe_id, tag_name, tag_value, confidence, tag_source
+    FROM recipe_tag_classifications
+    WHERE status = 'accepted';
+  ")
+
+  # Seed initial reference ingredients
+  seed_reference_ingredients(db)
+
   message("Database schema initialized successfully: ", db_path)
   invisible(db_path)
+}
+
+seed_reference_ingredients <- function(db, csv_path = NULL) {
+  # Insert reserved unmatched ID 0
+  dbExecute(db, "
+    INSERT OR IGNORE INTO ingredients_ref (ingredient_id, canonical_name_fr, canonical_name_en, category)
+    VALUES (0, 'Inconnu', 'Unknown', 'unmatched')
+  ")
+
+  real_csv_path <- if (is.null(csv_path)) find_dict_path("inst/dictionaries/bilingual_ingredients.csv") else csv_path
+
+  if (!file.exists(real_csv_path)) return(invisible(NULL))
+
+  df <- tryCatch(
+    utils::read.csv(real_csv_path, stringsAsFactors = FALSE),
+    error = function(e) NULL
+  )
+  if (is.null(df) || nrow(df) == 0) return(invisible(NULL))
+
+  for (i in seq_len(nrow(df))) {
+    canon <- trimws(tolower(df$canonical_name[[i]] %||% ""))
+    french <- trimws(tolower(df$french_name[[i]] %||% ""))
+    english <- trimws(tolower(df$english_name[[i]] %||% ""))
+    cat <- trimws(tolower(df$category[[i]] %||% "other"))
+
+    fr_primary <- trimws(strsplit(french, ",")[[1]][1])
+    en_primary <- if (nzchar(english)) trimws(strsplit(english, ",")[[1]][1]) else canon
+
+    if (!nzchar(fr_primary)) next
+
+    dbExecute(db, "
+      INSERT OR IGNORE INTO ingredients_ref (canonical_name_fr, canonical_name_en, category)
+      VALUES (?, ?, ?)
+    ", params = list(fr_primary, en_primary, cat))
+
+    ref_row <- dbGetQuery(db, "SELECT ingredient_id FROM ingredients_ref WHERE canonical_name_fr = ?", params = list(fr_primary))
+    if (nrow(ref_row) == 0) next
+    ref_id <- ref_row$ingredient_id[[1]]
+
+    # Process all synonym terms
+    synonyms <- c(canon, strsplit(french, ",")[[1]], strsplit(english, ",")[[1]])
+    synonyms <- unique(trimws(tolower(synonyms)))
+    synonyms <- synonyms[nzchar(synonyms)]
+
+    for (syn in synonyms) {
+      dbExecute(db, "
+        INSERT OR IGNORE INTO ingredient_synonyms (synonym_text, ingredient_id)
+        VALUES (?, ?)
+      ", params = list(syn, ref_id))
+    }
+  }
+
+  invisible(NULL)
 }

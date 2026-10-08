@@ -1,0 +1,13 @@
+tag_name,accept_threshold,reject_threshold
+mediterranean,80,40
+family_friendly,80,40
+comfort_food,80,40
+riche_en_fibres,80,40
+ete,80,40
+asiatique,80,40
+mexicain,80,40
+contains_meat,90,30
+contains_fish,90,30
+vegetarian,90,30
+vegan,90,30
+weeknight_ok,80,40

@@ -1,0 +1,67 @@
+[
+  {
+    "recipe_id": 101,
+    "title": "Spaghetti Bolognese",
+    "prep_min": 15,
+    "cook_min": 25,
+    "equipment": ["plaque"],
+    "ingredients": [
+      {"raw_text": "500g haché de boeuf", "canonical_name": "boeuf"},
+      {"raw_text": "400g pâtes spaghetti", "canonical_name": "pâtes"},
+      {"raw_text": "1 boîte sauce à spaghetti", "canonical_name": "sauce à spaghetti"},
+      {"raw_text": "2 gousses d'ail", "canonical_name": "ail"},
+      {"raw_text": "2 c. à soupe huile d'olive", "canonical_name": "huile d'olive"}
+    ]
+  },
+  {
+    "recipe_id": 102,
+    "title": "Curry de Lentilles et Épinards",
+    "prep_min": 10,
+    "cook_min": 20,
+    "equipment": ["plaque"],
+    "ingredients": [
+      {"raw_text": "1 boîte lentilles en conserves", "canonical_name": "lentilles en conserves"},
+      {"raw_text": "200g épinard", "canonical_name": "épinard"},
+      {"raw_text": "200ml lait de coco", "canonical_name": "lait de coco"},
+      {"raw_text": "200g riz", "canonical_name": "riz"}
+    ]
+  },
+  {
+    "recipe_id": 103,
+    "title": "Saumon Grillé aux Légumes",
+    "prep_min": 15,
+    "cook_min": 15,
+    "equipment": ["plaque"],
+    "ingredients": [
+      {"raw_text": "4 filets de saumon", "canonical_name": "saumon"},
+      {"raw_text": "200g asperge", "canonical_name": "asperge"},
+      {"raw_text": "1 courgette", "canonical_name": "courgette"},
+      {"raw_text": "2 c. à soupe huile d'olive", "canonical_name": "huile d'olive"}
+    ]
+  },
+  {
+    "recipe_id": 104,
+    "title": "Tacos de Poulet",
+    "prep_min": 15,
+    "cook_min": 15,
+    "equipment": ["plaque"],
+    "ingredients": [
+      {"raw_text": "400g poulet", "canonical_name": "poulet"},
+      {"raw_text": "1 avocat", "canonical_name": "avocat"},
+      {"raw_text": "2 tomates", "canonical_name": "tomate"},
+      {"raw_text": "8 tortillas", "canonical_name": "pain"}
+    ]
+  },
+  {
+    "recipe_id": 105,
+    "title": "Salade de Concombre et Radis",
+    "prep_min": 10,
+    "cook_min": 0,
+    "equipment": [],
+    "ingredients": [
+      {"raw_text": "1 concombre", "canonical_name": "concombre"},
+      {"raw_text": "1 botte radis", "canonical_name": "radis"},
+      {"raw_text": "2 c. à soupe huile d'olive", "canonical_name": "huile d'olive"}
+    ]
+  }
+]
