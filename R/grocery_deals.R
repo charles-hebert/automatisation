@@ -161,10 +161,14 @@ match_deals_to_ingredients <- function(deals, db_path = NULL, canonical_list = N
         fr <- tolower(trimws(bilingual_df$french_name[r]))
         en <- tolower(trimws(bilingual_df$english_name[r]))
         if (nzchar(can)) {
-          known_terms <- c(known_terms, can)
-          known_map[[can]] <- can
-          if (nzchar(fr)) { known_terms <- c(known_terms, fr); known_map[[fr]] <- can }
-          if (nzchar(en)) { known_terms <- c(known_terms, en); known_map[[en]] <- can }
+          fr_terms <- trimws(unlist(strsplit(fr, ",")))
+          en_terms <- trimws(unlist(strsplit(en, ",")))
+          all_terms <- unique(c(can, paste0(can, "s"), fr_terms, en_terms, paste0(en_terms, "s")))
+          all_terms <- all_terms[nzchar(all_terms)]
+          for (term in all_terms) {
+            known_terms <- c(known_terms, term)
+            known_map[[term]] <- can
+          }
         }
       }
     }
